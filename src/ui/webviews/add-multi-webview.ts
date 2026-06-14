@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import * as vscode from 'vscode';
@@ -9,6 +11,7 @@ import {
   type EnvVarNameCredential,
   type PairCredential,
 } from '../../credentials/credential';
+import { parseEnvFile } from '../../credentials/env-parser';
 import { errorToUserMessage } from '../error-to-message';
 import { persistVault } from '../../vault/persist';
 import type { VaultSession } from '../../vault/vault-session';
@@ -48,7 +51,11 @@ interface CancelMessage {
   readonly kind: 'cancel';
 }
 
-type WebviewMessage = SaveMessage | CancelMessage;
+interface UploadEnvMessage {
+  readonly kind: 'upload-env';
+}
+
+type WebviewMessage = SaveMessage | CancelMessage | UploadEnvMessage;
 
 export interface SeededRow {
   readonly name: string;
@@ -98,6 +105,14 @@ export function openAddMultipleWebview(
     panel.webview.onDidReceiveMessage((msg: WebviewMessage) => {
       if (msg.kind === 'cancel') {
         panel.dispose();
+        return;
+      }
+      if (msg.kind === 'upload-env') {
+        void (async () => {
+          const rows = await pickAndParseEnvFile();
+          if (rows === null) return;
+          await panel.webview.postMessage({ kind: 'append-rows', rows });
+        })();
         return;
       }
       void (async () => {
@@ -462,6 +477,7 @@ function renderWebviewHtml(webview: vscode.Webview, seed?: AddMultipleSeed): str
 
   <div class="toolbar">
     <button id="add-row" class="secondary" type="button"><svg class="vp-icon vp-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16"/><path d="M4 12h16"/></svg><span>Add Row</span></button>
+    <button id="upload-env" class="secondary" type="button" title="Pick a .env file to seed/append rows"><svg class="vp-icon vp-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14"/></svg><span>Upload .env</span></button>
     <span class="count" id="row-count"></span>
   </div>
 
@@ -598,8 +614,32 @@ function renderWebviewHtml(webview: vscode.Webview, seed?: AddMultipleSeed): str
         newRow();
         render();
       });
+      document.getElementById('upload-env').addEventListener('click', () => {
+        vscode.postMessage({ kind: 'upload-env' });
+      });
       document.getElementById('cancel').addEventListener('click', () => {
         vscode.postMessage({ kind: 'cancel' });
+      });
+
+      function isRowBlank(r) {
+        return (r.name == null || r.name.trim().length === 0)
+          && (r.value == null || r.value.length === 0)
+          && (r.fieldAValue == null || r.fieldAValue.length === 0)
+          && (r.fieldBValue == null || r.fieldBValue.length === 0);
+      }
+
+      window.addEventListener('message', (event) => {
+        const data = event.data;
+        if (!data || data.kind !== 'append-rows' || !Array.isArray(data.rows)) return;
+        // Drop blank rows so an empty form gets fully replaced by the upload.
+        rows = rows.filter((r) => !isRowBlank(r));
+        for (const s of data.rows) {
+          const r = newRow();
+          r.name = s.name || '';
+          r.type = s.type || 'env-var-name';
+          r.value = s.value || '';
+        }
+        render();
       });
       document.getElementById('save').addEventListener('click', () => {
         // Filter out completely-empty rows
@@ -644,4 +684,45 @@ function escapeHtml(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+async function pickAndParseEnvFile(): Promise<SeededRow[] | null> {
+  const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+  const picks = await vscode.window.showOpenDialog({
+    canSelectFiles: true,
+    canSelectFolders: false,
+    canSelectMany: false,
+    title: 'Select a .env file to import',
+    filters: {
+      'Env Files': ['env', 'env.local', 'env.production', 'env.development'],
+      'All Files': ['*'],
+    },
+    ...(workspaceUri !== undefined ? { defaultUri: workspaceUri } : {}),
+  });
+  const target = picks?.[0];
+  if (target === undefined) return null;
+
+  let text: string;
+  try {
+    text = await readFile(target.fsPath, 'utf8');
+  } catch (err) {
+    void vscode.window.showErrorMessage(
+      `Could not read ${target.fsPath}: ${String(err)}`,
+    );
+    return null;
+  }
+
+  const entries = parseEnvFile(text);
+  if (entries.length === 0) {
+    void vscode.window.showInformationMessage(
+      `No environment variables found in ${path.basename(target.fsPath)}.`,
+    );
+    return null;
+  }
+
+  return entries.map<SeededRow>((e) => ({
+    name: e.key,
+    type: 'env-var-name',
+    value: e.value,
+  }));
 }
