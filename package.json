@@ -1,0 +1,301 @@
+{
+  "name": "vaultpilot",
+  "displayName": "VaultPilot",
+  "description": "A VS Code extension that gives every project a persistent, recoverable credential store inside the editor.",
+  "version": "0.0.1",
+  "publisher": "ashutoshsuryavanshi",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:vaultpilot"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vaultpilot",
+          "title": "VaultPilot",
+          "icon": "$(key)"
+        }
+      ]
+    },
+    "views": {
+      "vaultpilot": [
+        {
+          "id": "vaultpilot",
+          "name": "VaultPilot"
+        },
+        {
+          "id": "vaultpilot.archived",
+          "name": "Archived Vaults",
+          "when": "vaultpilot.archivedViewVisible",
+          "visibility": "collapsed"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "vaultpilot",
+        "contents": "Welcome to VaultPilot.\n\nVaultPilot stores credentials for the active workspace, encrypted at rest under `~/.vaultpilot/`.\n\n[Set Up New Vault](command:vaultpilot.setUpVault)\n[Restore from Drive](command:vaultpilot.restoreFromDrive)",
+        "when": "!vaultpilot.vaultExists"
+      },
+      {
+        "view": "vaultpilot",
+        "contents": "No credentials yet for this project.\n\n[Add Credential](command:vaultpilot.addCredential)",
+        "when": "vaultpilot.vaultExists"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "vaultpilot.openDashboard",
+          "when": "view == vaultpilot",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vaultpilot.addCredential",
+          "when": "view == vaultpilot && vaultpilot.vaultExists",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vaultpilot.addMultipleCredentials",
+          "when": "view == vaultpilot && vaultpilot.vaultExists",
+          "group": "navigation@3"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "vaultpilot.importFromEnv",
+          "when": "resourceFilename =~ /^\\.env($|\\..+)/",
+          "group": "vaultpilot@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "vaultpilot.copyCredential",
+          "when": "view == vaultpilot && viewItem =~ /^vaultpilot\\.credential/",
+          "group": "inline@1"
+        },
+        {
+          "command": "vaultpilot.revealCredential",
+          "when": "view == vaultpilot && viewItem =~ /^vaultpilot\\.credential/",
+          "group": "vaultpilot@1"
+        },
+        {
+          "command": "vaultpilot.editCredential",
+          "when": "view == vaultpilot && viewItem =~ /^vaultpilot\\.credential/",
+          "group": "vaultpilot@2"
+        },
+        {
+          "command": "vaultpilot.deleteCredential",
+          "when": "view == vaultpilot && viewItem =~ /^vaultpilot\\.credential/",
+          "group": "vaultpilot@3"
+        },
+        {
+          "command": "vaultpilot.copyCredential",
+          "when": "view == vaultpilot.archived && viewItem =~ /^vaultpilot\\.archived\\.credential/",
+          "group": "inline@1"
+        },
+        {
+          "command": "vaultpilot.revealCredential",
+          "when": "view == vaultpilot.archived && viewItem =~ /^vaultpilot\\.archived\\.credential/",
+          "group": "vaultpilot@1"
+        },
+        {
+          "command": "vaultpilot.promoteArchived",
+          "when": "view == vaultpilot.archived && viewItem == vaultpilot.archived.project",
+          "group": "vaultpilot@1"
+        },
+        {
+          "command": "vaultpilot.deleteArchived",
+          "when": "view == vaultpilot.archived && viewItem == vaultpilot.archived.project",
+          "group": "vaultpilot@2"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "vaultpilot.addCredential",
+        "title": "VaultPilot: Add Credential",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.addMultipleCredentials",
+        "title": "VaultPilot: Add Multiple Credentials…",
+        "category": "VaultPilot",
+        "icon": "$(add)"
+      },
+      {
+        "command": "vaultpilot.openDashboard",
+        "title": "VaultPilot: Open Dashboard",
+        "category": "VaultPilot",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "vaultpilot.editCredential",
+        "title": "VaultPilot: Edit Credential",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.deleteCredential",
+        "title": "VaultPilot: Delete Credential",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.copyCredential",
+        "title": "VaultPilot: Copy Credential",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.revealCredential",
+        "title": "VaultPilot: Reveal Credential",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.openArchivedVaults",
+        "title": "VaultPilot: Open Archived Vaults",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.setUpVault",
+        "title": "VaultPilot: Set Up Vault",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.backUpToDrive",
+        "title": "VaultPilot: Back Up to Drive",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.removeDriveBackup",
+        "title": "VaultPilot: Remove Drive Backup",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.localBackup",
+        "title": "VaultPilot: Back Up to Local Folder",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.restoreFromDrive",
+        "title": "VaultPilot: Restore from Drive",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.openSettings",
+        "title": "VaultPilot: Open Settings",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.unlockArchived",
+        "title": "VaultPilot: Unlock Archived Entry",
+        "category": "VaultPilot",
+        "enablement": "false"
+      },
+      {
+        "command": "vaultpilot.promoteArchived",
+        "title": "VaultPilot: Promote Archived to Active",
+        "category": "VaultPilot",
+        "enablement": "false"
+      },
+      {
+        "command": "vaultpilot.deleteArchived",
+        "title": "VaultPilot: Permanently Delete Archived",
+        "category": "VaultPilot",
+        "enablement": "false"
+      },
+      {
+        "command": "vaultpilot.archiveProject",
+        "title": "VaultPilot: Archive Project",
+        "category": "VaultPilot",
+        "enablement": "false"
+      },
+      {
+        "command": "vaultpilot.importFromEnv",
+        "title": "VaultPilot: Import Credentials from .env File",
+        "category": "VaultPilot"
+      }
+    ],
+    "configuration": {
+      "title": "VaultPilot",
+      "properties": {
+        "vaultpilot.clipboardTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "description": "Seconds before the clipboard is auto-cleared after copying a credential value (FR-26)."
+        },
+        "vaultpilot.passphraseCacheDuration": {
+          "type": "number",
+          "default": 3600,
+          "minimum": 60,
+          "description": "Seconds the derived encryption key is cached in the OS keychain before re-prompting (FR-4)."
+        },
+        "vaultpilot.driveBackupFolderName": {
+          "type": "string",
+          "default": "vaultpilot-backup",
+          "description": "Name of the canonical backup file in the Google Drive appdata folder (FR-35)."
+        },
+        "vaultpilot.driveBackupEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether Google Drive backup is opted in. Default is off; the extension makes no Drive network call while disabled (FR-32, NFR-1)."
+        },
+        "vaultpilot.driveOAuthClientId": {
+          "type": "string",
+          "default": "",
+          "description": "Google OAuth 2.0 client ID for the Drive integration (FR-33). Register a 'Desktop app' client at https://console.cloud.google.com/. Drive features remain unavailable while this is empty."
+        },
+        "vaultpilot.driveOAuthClientSecret": {
+          "type": "string",
+          "default": "",
+          "description": "Google OAuth 2.0 client secret for the Drive integration. Google's token endpoint requires this for 'Desktop app' clients even when PKCE is used. Despite the name, this is NOT actually secret for desktop clients (anyone with the client ID can read it in the Cloud Console). Copy it from the same page as the client ID."
+        },
+        "vaultpilot.verboseLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Emit verbose debug messages to the 'VaultPilot' OutputChannel. Never persisted to disk."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "test": "mocha --reporter spec --require ts-node/register \"src/**/*.test.ts\"",
+    "test:integration": "node ./test/integration/runner.js"
+  },
+  "devDependencies": {
+    "@types/libsodium-wrappers": "^0.7.13",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.3.9",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.20.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-import": "^2.29.1",
+    "mocha": "^10.3.0",
+    "prettier": "^3.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.0.0"
+  },
+  "dependencies": {
+    "@types/tar": "^6.1.13",
+    "archiver": "^7.0.1",
+    "archiver-zip-encrypted": "^2.0.0",
+    "libsodium-wrappers-sumo": "^0.8.4",
+    "tar": "^7.5.16"
+  }
+}

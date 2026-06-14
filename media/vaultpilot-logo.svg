@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="vp-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5EE3DC"/>
+      <stop offset="100%" stop-color="#5A9FE3"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield outline -->
+  <path d="M50 8 L86 22 V52 C86 73 70 89 50 95 C30 89 14 73 14 52 V22 Z"
+        fill="none" stroke="url(#vp-grad)" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- Y glyph: hub circle + three radiating arms -->
+  <circle cx="50" cy="44" r="7" fill="url(#vp-grad)"/>
+  <line x1="50" y1="44" x2="36" y2="32" stroke="url(#vp-grad)" stroke-width="6" stroke-linecap="round"/>
+  <line x1="50" y1="44" x2="64" y2="32" stroke="url(#vp-grad)" stroke-width="6" stroke-linecap="round"/>
+  <line x1="50" y1="44" x2="50" y2="66" stroke="url(#vp-grad)" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="50" cy="68" r="4" fill="url(#vp-grad)"/>
+</svg>

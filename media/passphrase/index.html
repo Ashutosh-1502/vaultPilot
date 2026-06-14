@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${cspSource} data:; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' ${cspSource};">
+  <title>VaultPilot — Passphrase</title>
+  <link rel="stylesheet" href="${cssUri}">
+</head>
+<body>
+  <div class="container">
+    <div class="brand">
+      <img src="${logoUri}" alt="VaultPilot">
+      <div class="brand-name">VaultPilot</div>
+    </div>
+
+    <h1 class="title" id="title">${title}</h1>
+    <p class="subtitle" id="subtitle">${subtitle}</p>
+
+    <div class="form">
+      <label for="pass1" id="label1">${label}</label>
+      <div class="input-row">
+        <input id="pass1" type="password" autocomplete="new-password" autofocus />
+        <button class="eye-btn" type="button" id="reveal1" title="Show / hide" aria-label="Show / hide"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <div class="strength" id="strength1"></div>
+
+      <!-- Second input shown only in confirmation mode -->
+      <div id="confirm-block" hidden>
+        <label for="pass2">Re-enter to confirm</label>
+        <div class="input-row">
+          <input id="pass2" type="password" autocomplete="new-password" />
+          <button class="eye-btn" type="button" id="reveal2" title="Show / hide" aria-label="Show / hide"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+        <div class="match-warning" id="match-warning" hidden>Passphrases don't match.</div>
+      </div>
+
+      <div class="hint" id="hint">${hint}</div>
+
+      <div class="actions">
+        <button class="secondary-btn" type="button" id="cancel-btn">Cancel</button>
+        <button class="primary-btn" type="button" id="submit-btn">${submitLabel}</button>
+      </div>
+    </div>
+  </div>
+
+  <script nonce="${nonce}" src="${jsUri}"></script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${cspSource} data:; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' ${cspSource};">
+  <title>VaultPilot — Dashboard</title>
+  <link rel="stylesheet" href="${cssUri}">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ─── Left rail nav ────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="${logoUri}" alt="VaultPilot">
+        <span class="name">VaultPilot</span>
+      </div>
+      <a class="nav-item active" data-view="dashboard">
+        <svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" data-view="settings">
+        <svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12c0-.6-.1-1.2-.2-1.7l2-1.5-2-3.5-2.4.9c-.8-.7-1.7-1.2-2.7-1.5L13.3 2h-2.7l-.4 2.7c-1 .3-1.9.8-2.7 1.5l-2.4-.9-2 3.5 2 1.5c-.1.5-.2 1.1-.2 1.7s.1 1.2.2 1.7l-2 1.5 2 3.5 2.4-.9c.8.7 1.7 1.2 2.7 1.5l.4 2.7h2.7l.4-2.7c1-.3 1.9-.8 2.7-1.5l2.4.9 2-3.5-2-1.5c.1-.5.2-1.1.2-1.7z"/></svg>
+        <span>Settings</span>
+      </a>
+    </aside>
+
+    <!-- ─── Main content area ───────────────────────────────────── -->
+    <main class="main">
+
+      <!-- ─── Dashboard view ────────────────────────────────────── -->
+      <section id="view-dashboard" class="view">
+        <h1 class="page-title">All Projects</h1>
+        <p class="page-subtitle">Every vault initialized on this machine. Click a card to view its credentials.</p>
+
+        <div class="toolbar">
+          <div class="search">
+            <input id="search-input" type="text" placeholder="Search credentials or projects...">
+          </div>
+          <div class="tabs">
+            <button class="tab active" data-tab="all">All</button>
+            <button class="tab" data-tab="active">Active</button>
+            <button class="tab" data-tab="archived">Archived</button>
+          </div>
+          <select id="sort-select" class="sort-dropdown">
+            <option value="recent">Sort: Recent</option>
+            <option value="name">Sort: Name</option>
+            <option value="created">Sort: Created</option>
+          </select>
+        </div>
+
+        <div id="project-grid" class="project-grid">
+          <!-- Cards rendered by dashboard.js -->
+        </div>
+
+        <div id="empty-state" class="empty-state" hidden>
+          <svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;opacity:.5"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+          <p>No projects yet. Set up a vault for the current workspace to get started.</p>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="label">Total Secrets</div>
+            <div id="stat-secrets" class="value">—</div>
+            <div id="stat-secrets-delta" class="delta"></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Active Clients</div>
+            <div id="stat-active" class="value">0</div>
+            <div class="delta">Projects with credentials</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Sync Status</div>
+            <div id="stat-sync" class="value">—</div>
+            <div id="stat-sync-delta" class="delta">Drive backup</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Project detail view ────────────────────────────────── -->
+      <section id="view-project" class="view" hidden>
+        <div class="project-detail-header">
+          <button class="back-btn" id="back-to-dashboard"><svg class="vp-icon vp-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg><span>Dashboard</span></button>
+          <div class="project-detail-title" id="project-title"></div>
+        </div>
+
+        <div id="project-meta" class="meta-block">
+          <!-- Filled by dashboard.js -->
+        </div>
+
+        <div id="project-credentials-area">
+          <div class="section-header">
+            <span class="title">Vault Credentials</span>
+            <span class="count" id="credentials-count">— ENTRIES</span>
+          </div>
+          <div id="credentials-list">
+            <!-- Filled by dashboard.js -->
+          </div>
+          <button class="add-key-btn" id="add-key-btn">+ Add New Key</button>
+        </div>
+      </section>
+
+      <!-- ─── Settings view ────────────────────────────────────── -->
+      <section id="view-settings" class="view" hidden>
+        <h1 class="page-title">Configuration &amp; Backup</h1>
+        <p class="page-subtitle">Manage your global security parameters and synchronization preferences.</p>
+
+        <!-- ─── Local File Backup ─────────────────────────────── -->
+        <div class="settings-section">
+          <div class="h"><svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg> Local File Backup</div>
+          <div class="sub">Copies every encrypted vault into a folder you choose. Each file is password-protected with the passphrase you used to set up that vault.</div>
+          <div class="kv-row">
+            <div class="k">Last Backup</div>
+            <div class="v" id="local-last-backup">Never</div>
+            <div></div>
+          </div>
+          <div class="kv-row local-detail-row" id="local-folder-row" hidden>
+            <div class="k">Folder</div>
+            <div class="v"><code id="local-backup-folder">—</code></div>
+            <div></div>
+          </div>
+          <div class="kv-row local-detail-row" id="local-count-row" hidden>
+            <div class="k">Vaults Backed Up</div>
+            <div class="v" id="local-backup-count">—</div>
+            <div></div>
+          </div>
+          <div class="kv-row">
+            <div class="k">Actions</div>
+            <div class="v"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="local-backup-btn" class="primary-btn"><svg class="vp-icon vp-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg><span>Back Up Locally</span></button>
+              <button id="refresh-local-btn" class="secondary-btn"><svg class="vp-icon vp-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg><span>Refresh</span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Google Drive Sync (Coming Soon) ─────────────── -->
+        <div class="settings-section coming-soon">
+          <div class="h">
+            <svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.7-7.94 5 5 0 0 1 9.78-1.13A4.5 4.5 0 0 1 17 18z"/></svg>
+            Google Drive Sync
+            <span class="badge-coming-soon">Coming Soon</span>
+          </div>
+          <div class="sub">Drive backup is temporarily disabled while we polish the OAuth flow.</div>
+          <div class="kv-row">
+            <div class="k">Status</div>
+            <div class="v">
+              <span class="sync-status disconnected"><span class="dot"></span><span>Disabled</span></span>
+            </div>
+            <div></div>
+          </div>
+          <div class="kv-row">
+            <div class="k">Actions</div>
+            <div class="v"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="primary-btn" disabled>Sync Now</button>
+              <button class="secondary-btn" disabled>Refresh from Drive</button>
+              <button class="secondary-btn" disabled>Remove from Drive</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Inspect Backups ─────────────────────────────── -->
+        <div class="settings-section">
+          <div class="h"><svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg> Inspect Backups</div>
+          <div class="sub">See what's in each backup destination. Listing vaults doesn't require a passphrase — only viewing the secrets inside one does.</div>
+
+          <div class="backup-destination">
+            <div class="dest-row">
+              <div class="dest-info">
+                <svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+                <div>
+                  <div class="dest-name">Local File</div>
+                  <div class="dest-sub" id="dest-local-sub">No local backup yet.</div>
+                </div>
+              </div>
+              <button id="inspect-local-btn" class="secondary-btn"><svg class="vp-icon vp-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Inspect</span></button>
+            </div>
+            <div id="local-inspect-result" class="inspect-result" hidden>
+              <div id="local-inspect-status" class="inspect-status">—</div>
+              <div id="local-inspect-vaults" class="inspect-projects"></div>
+            </div>
+          </div>
+
+          <div class="backup-destination">
+            <div class="dest-row">
+              <div class="dest-info">
+                <svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.7-7.94 5 5 0 0 1 9.78-1.13A4.5 4.5 0 0 1 17 18z"/></svg>
+                <div>
+                  <div class="dest-name">Google Drive <span class="badge-coming-soon">Coming Soon</span></div>
+                  <div class="dest-sub">Drive inspection will return when sync is re-enabled.</div>
+                </div>
+              </div>
+              <button class="secondary-btn" disabled><svg class="vp-icon vp-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Inspect</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="h"><svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3z"/></svg> Vault Health</div>
+          <div class="sub">Local integrity check across all initialized projects.</div>
+          <div class="kv-row">
+            <div class="k">Integrity</div>
+            <div class="v" id="health-integrity">OK — N entries verified</div>
+            <div></div>
+          </div>
+          <div class="kv-row">
+            <div class="k">Active Sessions</div>
+            <div class="v" id="health-sessions">—</div>
+            <div></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="h"><svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> Security Settings</div>
+          <div class="kv-row">
+            <div class="k">Encryption Engine</div>
+            <div class="v">XChaCha20-Poly1305 (libsodium-wrappers-sumo)</div>
+            <div></div>
+          </div>
+          <div class="kv-row">
+            <div class="k">Key Derivation</div>
+            <div class="v">argon2id (INTERACTIVE)</div>
+            <div></div>
+          </div>
+          <div class="kv-row">
+            <div class="k">Local Storage Path</div>
+            <div class="v" id="storage-path">~/.vaultpilot/</div>
+            <div></div>
+          </div>
+          <div class="kv-row">
+            <div class="k">Auto-lock on Idle</div>
+            <div class="v" id="auto-lock-status">Enabled</div>
+            <div></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="h"><svg class="vp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01"/><path d="M11 12h1v5"/></svg> Application Details</div>
+          <div class="kv-row">
+            <div class="k">Current Version</div>
+            <div class="v" id="app-version">v0.0.1</div>
+            <div></div>
+          </div>
+          <div class="kv-row">
+            <div class="k">Documentation</div>
+            <div class="v">README + docs/threat-model.md + docs/vault-file-format.md</div>
+            <div><button class="secondary-btn" id="open-docs-btn">Open</button></div>
+          </div>
+          <div class="kv-row">
+            <div class="k">Changelog</div>
+            <div class="v">CHANGELOG.md</div>
+            <div><button class="secondary-btn" id="open-changelog-btn">Open</button></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script nonce="${nonce}" src="${jsUri}"></script>
+</body>
+</html>

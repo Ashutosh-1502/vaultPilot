@@ -1,0 +1,51 @@
+{
+  "description": "FR-45 normalization corpus. Each case is a [input, expected canonical] pair. The five canonical-equivalence cases from FR-45 appear first; the remaining cases cover GitLab, Bitbucket, self-hosted, scp-style, trailing slashes, mixed case, leading/trailing whitespace, and idempotency.",
+  "cases": [
+    ["git@github.com:user/repo.git",                              "github.com/user/repo"],
+    ["https://github.com/user/repo.git",                          "github.com/user/repo"],
+    ["https://github.com/user/repo",                              "github.com/user/repo"],
+    ["ssh://git@github.com/user/repo.git",                        "github.com/user/repo"],
+    ["https://GitHub.com/User/Repo.git/",                         "github.com/user/repo"],
+
+    ["git@gitlab.com:group/project.git",                          "gitlab.com/group/project"],
+    ["https://gitlab.com/group/project.git",                      "gitlab.com/group/project"],
+    ["https://gitlab.com/group/subgroup/project",                 "gitlab.com/group/subgroup/project"],
+    ["ssh://git@gitlab.com/group/subgroup/project.git",           "gitlab.com/group/subgroup/project"],
+
+    ["git@bitbucket.org:owner/repo.git",                          "bitbucket.org/owner/repo"],
+    ["https://bitbucket.org/owner/repo.git",                      "bitbucket.org/owner/repo"],
+    ["https://bitbucket.org/owner/repo",                          "bitbucket.org/owner/repo"],
+
+    ["git@codeberg.org:user/repo.git",                            "codeberg.org/user/repo"],
+    ["https://codeberg.org/user/repo",                            "codeberg.org/user/repo"],
+
+    ["git@git.internal.example.com:team/svc.git",                 "git.internal.example.com/team/svc"],
+    ["https://git.internal.example.com/team/svc.git",             "git.internal.example.com/team/svc"],
+    ["ssh://git@git.internal.example.com/team/svc.git",           "git.internal.example.com/team/svc"],
+
+    ["git@github.com:user/repo",                                  "github.com/user/repo"],
+    ["https://github.com/user/repo.git/",                         "github.com/user/repo"],
+    ["https://github.com/user/repo/",                             "github.com/user/repo"],
+    ["  https://github.com/user/repo  ",                          "github.com/user/repo"],
+    ["\thttps://github.com/user/repo\n",                          "github.com/user/repo"],
+
+    ["https://github.com/USER/REPO.git",                          "github.com/user/repo"],
+    ["GIT@GITHUB.COM:USER/REPO.GIT",                              "github.com/user/repo"],
+    ["https://github.com/Owner/Mixed-Case-Repo.git",              "github.com/owner/mixed-case-repo"],
+
+    ["http://insecure.example.com/team/repo.git",                 "insecure.example.com/team/repo"],
+    ["git://anonymous.example.com/team/repo.git",                 "anonymous.example.com/team/repo"],
+
+    ["github.com/user/repo",                                      "github.com/user/repo"],
+    ["GitHub.com/User/Repo",                                      "github.com/user/repo"],
+
+    ["https://github.com/user/repo-with-dashes_and_unders.git",   "github.com/user/repo-with-dashes_and_unders"],
+    ["git@github.com:user/repo.dotted.name.git",                  "github.com/user/repo.dotted.name"]
+  ],
+  "idempotencyCases": [
+    "github.com/user/repo",
+    "gitlab.com/group/subgroup/project",
+    "bitbucket.org/owner/repo",
+    "git.internal.example.com/team/svc"
+  ]
+}

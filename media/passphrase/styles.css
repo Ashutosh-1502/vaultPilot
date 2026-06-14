@@ -1,0 +1,217 @@
+/* ============================================================================
+ * VaultPilot — Passphrase Prompt Webview
+ *
+ * Branded surface (NOT theme-aware). Uses the DESIGN.md token palette so the
+ * prompt always looks like VaultPilot regardless of the user's VS Code theme.
+ * ========================================================================= */
+
+:root {
+  /* Mirror dashboard tokens — see docs/DESIGN.md */
+  --vp-surface: #0b1326;
+  --vp-surface-container-low: #131b2e;
+  --vp-surface-container: #171f33;
+  --vp-surface-container-high: #222a3d;
+  --vp-on-surface: #dae2fd;
+  --vp-on-surface-variant: #bacac5;
+  --vp-outline: #859490;
+  --vp-outline-variant: #3c4a46;
+  --vp-primary: #57f1db;
+  --vp-primary-container: #2dd4bf;
+  --vp-on-primary-container: #00574d;
+  --vp-secondary: #7bd0ff;
+  --vp-tertiary-container: #ffac5a;
+
+  --vp-accent: var(--vp-primary-container);
+  --vp-accent-soft: rgba(45, 212, 191, 0.14);
+  --vp-warning: var(--vp-tertiary-container);
+  --vp-danger: #F87171;
+
+  --vp-font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --vp-font-mono: 'JetBrains Mono', 'SF Mono', 'Menlo', 'Consolas', monospace;
+
+  --vp-radius-md: 0.25rem;
+  --vp-radius-lg: 0.5rem;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--vp-font-ui);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--vp-on-surface);
+  background: var(--vp-surface);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  padding: 32px 36px;
+  background: var(--vp-surface-container);
+  border: 1px solid var(--vp-outline-variant);
+  border-radius: var(--vp-radius-lg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.brand img { width: 36px; height: 36px; }
+.brand-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--vp-on-surface);
+}
+
+.title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
+}
+.subtitle {
+  color: var(--vp-on-surface-variant);
+  margin: 0 0 24px 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--vp-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.input-row input {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--vp-surface-container-low);
+  color: var(--vp-on-surface);
+  border: 1px solid var(--vp-outline-variant);
+  border-radius: var(--vp-radius-md);
+  font-family: var(--vp-font-mono);
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.input-row input:focus {
+  outline: none;
+  border-color: var(--vp-secondary);
+  box-shadow: 0 0 0 3px rgba(123, 208, 255, 0.18);
+}
+
+.eye-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--vp-outline-variant);
+  color: var(--vp-on-surface-variant);
+  width: 42px;
+  border-radius: var(--vp-radius-md);
+  cursor: pointer;
+  padding: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+.eye-btn:hover {
+  background: var(--vp-surface-container-high);
+  color: var(--vp-primary);
+}
+.eye-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.strength {
+  font-family: var(--vp-font-mono);
+  font-size: 0.78rem;
+  min-height: 1rem;
+  margin: 4px 0 16px;
+  color: var(--vp-on-surface-variant);
+}
+.strength[data-level="weak"] { color: var(--vp-danger); }
+.strength[data-level="ok"] { color: var(--vp-warning); }
+.strength[data-level="strong"] { color: var(--vp-primary); }
+
+.match-warning {
+  color: var(--vp-danger);
+  font-size: 0.78rem;
+  margin: 4px 0 8px;
+}
+
+.hint {
+  color: var(--vp-on-surface-variant);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  background: var(--vp-accent-soft);
+  border-left: 2px solid var(--vp-primary-container);
+  border-radius: var(--vp-radius-md);
+}
+.hint:empty { display: none; }
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.primary-btn {
+  background: var(--vp-primary-container);
+  color: var(--vp-on-primary-container);
+  border: none;
+  padding: 9px 22px;
+  border-radius: var(--vp-radius-md);
+  font-family: var(--vp-font-ui);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, transform 80ms ease;
+}
+.primary-btn:hover { background: var(--vp-primary); }
+.primary-btn:active { transform: translateY(1px); }
+.primary-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.secondary-btn {
+  background: transparent;
+  border: 1px solid var(--vp-outline-variant);
+  color: var(--vp-primary);
+  padding: 8px 18px;
+  border-radius: var(--vp-radius-md);
+  font-family: var(--vp-font-ui);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.secondary-btn:hover {
+  background: var(--vp-surface-container-high);
+  border-color: var(--vp-primary);
+}
