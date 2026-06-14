@@ -33,6 +33,7 @@ export async function importFromEnvCommand(
   fileUri: vscode.Uri | undefined,
   extensionUri: vscode.Uri,
   secretStorage: SecretStorageWrapper,
+  options?: { readonly excludeExistingNames?: boolean },
 ): Promise<void> {
   if (!session.isUnlocked()) {
     const handled = await offerUnlockOrSetUp(session, secretStorage);
@@ -70,12 +71,27 @@ export async function importFromEnvCommand(
     return;
   }
 
-  const entries = parseEnvFile(content);
-  if (entries.length === 0) {
+  const parsed = parseEnvFile(content);
+  if (parsed.length === 0) {
     void vscode.window.showInformationMessage(
       'No environment variables found in this file (skipped blanks, comments, empty values).',
     );
     return;
+  }
+
+  let entries = parsed;
+  if (options?.excludeExistingNames === true) {
+    const existing = session.getCredentials();
+    if (existing.ok) {
+      const existingNames = new Set<string>(existing.value.map((c) => c.name));
+      entries = parsed.filter((e) => !existingNames.has(e.key));
+      if (entries.length === 0) {
+        void vscode.window.showInformationMessage(
+          `All ${String(parsed.length)} env vars in this file are already in the vault.`,
+        );
+        return;
+      }
+    }
   }
 
   const fileName = path.basename(target.fsPath);

@@ -3,7 +3,7 @@
   "displayName": "VaultPilot",
   "description": "A VS Code extension that gives every project a persistent, recoverable credential store inside the editor.",
   "version": "0.0.1",
-  "publisher": "ashutoshsuryavanshi",
+  "publisher": "Saferoom Labs",
   "license": "MIT",
   "repository": {
     "type": "git",

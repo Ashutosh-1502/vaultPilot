@@ -143,6 +143,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         session,
         globalState: context.globalState,
         onChange,
+        extensionUri: context.extensionUri,
       }).catch((err: unknown) => logger?.error(`setUpVault: ${String(err)}`)),
     ),
     vscode.commands.registerCommand('vaultpilot.restore', async () => {

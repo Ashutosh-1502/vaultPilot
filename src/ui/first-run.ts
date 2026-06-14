@@ -1,3 +1,5 @@
+import { promises as fs } from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { zeroBuffer } from '../vault/memory-zero';
@@ -17,6 +19,8 @@ import {
 import { resolveFingerprint } from '../fingerprint/re-link';
 import { errorToUserMessage } from './error-to-message';
 import { promptPassphraseConfirm } from './passphrase-prompt';
+import { importFromEnvCommand, isEnvFileName } from './commands/import-from-env';
+import { parseEnvFile } from '../credentials/env-parser';
 import type { SecretStorageWrapper } from '../keychain/secret-storage';
 import type { VaultSession, ProjectMetadata } from '../vault/vault-session';
 import { CONTEXT_KEYS, GLOBAL_STATE } from '../settings/state-keys';
@@ -33,6 +37,8 @@ export interface FirstRunDeps {
   session: VaultSession;
   globalState: vscode.Memento;
   onChange: () => void;
+  /** Used to render the import-from-env webview if .env files are detected post-setup. */
+  extensionUri: vscode.Uri;
 }
 
 export async function setUpNewVault(deps: FirstRunDeps): Promise<void> {
@@ -146,7 +152,89 @@ export async function setUpNewVault(deps: FirstRunDeps): Promise<void> {
   await vscode.commands.executeCommand('setContext', CONTEXT_KEYS.VAULT_EXISTS, true);
   deps.onChange();
 
+  await offerEnvImport(deps, ws.uri.fsPath);
   await offerDriveOptIn(deps.globalState);
+}
+
+/**
+ * After first-run, scan the workspace root for .env* files and, if any are
+ * found, offer to import them into the freshly-unlocked vault.
+ *
+ * Counts and surfaces only env vars whose `KEY` is not already a credential
+ * name in the vault — so files whose contents are fully covered show up as
+ * "already in vault" and files with nothing new are silently skipped.
+ * Workspace root only (not recursive) per MVP scope.
+ */
+async function offerEnvImport(deps: FirstRunDeps, workspaceRoot: string): Promise<void> {
+  let entries: string[];
+  try {
+    entries = await fs.readdir(workspaceRoot);
+  } catch {
+    return;
+  }
+  const envFiles = entries.filter(isEnvFileName).sort();
+  if (envFiles.length === 0) return;
+
+  const existing = deps.session.getCredentials();
+  const existingNames = new Set<string>(
+    existing.ok ? existing.value.map((c) => c.name) : [],
+  );
+
+  const newKeysInFile = async (name: string): Promise<number> => {
+    try {
+      const text = await fs.readFile(path.join(workspaceRoot, name), 'utf8');
+      return parseEnvFile(text).filter((e) => !existingNames.has(e.key)).length;
+    } catch {
+      return 0;
+    }
+  };
+
+  // Pre-compute the new-key count per file so we can both filter out fully-
+  // covered files and label the QuickPick rows accurately.
+  const counted = await Promise.all(
+    envFiles.map(async (name) => ({ name, newCount: await newKeysInFile(name) })),
+  );
+  const candidates = counted.filter((c) => c.newCount > 0);
+  if (candidates.length === 0) return;
+
+  let chosen: { name: string; newCount: number } | undefined;
+  if (candidates.length === 1) {
+    chosen = candidates[0];
+  } else {
+    type EnvPick = vscode.QuickPickItem & { readonly file: string; readonly newCount: number };
+    const items: EnvPick[] = candidates.map((c) => ({
+      label: c.name,
+      description: `${String(c.newCount)} new variable${c.newCount === 1 ? '' : 's'}`,
+      file: c.name,
+      newCount: c.newCount,
+    }));
+    const picked = await vscode.window.showQuickPick(items, {
+      title: 'VaultPilot found .env files in this workspace',
+      placeHolder: 'Pick a file to import (you can import the others later via the command palette)',
+      ignoreFocusOut: true,
+    });
+    if (picked === undefined) return;
+    chosen = { name: picked.file, newCount: picked.newCount };
+  }
+  if (chosen === undefined) return;
+
+  const IMPORT = 'Import';
+  const SKIP = 'Skip';
+  const choice = await vscode.window.showInformationMessage(
+    `Found ${String(chosen.newCount)} new env var${chosen.newCount === 1 ? '' : 's'} in ${chosen.name}. Import to VaultPilot?`,
+    IMPORT,
+    SKIP,
+  );
+  if (choice !== IMPORT) return;
+
+  await importFromEnvCommand(
+    deps.session,
+    deps.onChange,
+    vscode.Uri.file(path.join(workspaceRoot, chosen.name)),
+    deps.extensionUri,
+    deps.secretStorage,
+    { excludeExistingNames: true },
+  );
 }
 
 async function offerDriveOptIn(globalState: vscode.Memento): Promise<void> {
