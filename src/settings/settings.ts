@@ -31,6 +31,13 @@ export interface VaultPilotSettings {
    * Cloud Console).
    */
   readonly driveOAuthClientSecret: string;
+  /**
+   * Optional override for the local backup parent folder. Empty string means
+   * "use the extension's globalStorage path" — that default lets Restore from
+   * Local find the backup automatically without the user remembering where they
+   * chose to put it.
+   */
+  readonly localBackupFolder: string;
   /** Verbose OutputChannel logging. */
   readonly verboseLogging: boolean;
 }
@@ -42,6 +49,7 @@ const DEFAULTS: VaultPilotSettings = {
   driveBackupEnabled: false,
   driveOAuthClientId: '',
   driveOAuthClientSecret: '',
+  localBackupFolder: '',
   verboseLogging: false,
 };
 
@@ -65,6 +73,10 @@ export function readSettings(host: VscodeHost): VaultPilotSettings {
     driveOAuthClientSecret: config.get<string>(
       'driveOAuthClientSecret',
       DEFAULTS.driveOAuthClientSecret,
+    ),
+    localBackupFolder: config.get<string>(
+      'localBackupFolder',
+      DEFAULTS.localBackupFolder,
     ),
     verboseLogging: config.get<boolean>('verboseLogging', DEFAULTS.verboseLogging),
   };

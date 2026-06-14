@@ -5,6 +5,10 @@
   "version": "0.0.1",
   "publisher": "ashutoshsuryavanshi",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ashutosh-1502/vaultPilot.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -42,7 +46,7 @@
     "viewsWelcome": [
       {
         "view": "vaultpilot",
-        "contents": "Welcome to VaultPilot.\n\nVaultPilot stores credentials for the active workspace, encrypted at rest under `~/.vaultpilot/`.\n\n[Set Up New Vault](command:vaultpilot.setUpVault)\n[Restore from Drive](command:vaultpilot.restoreFromDrive)",
+        "contents": "Welcome to VaultPilot.\n\nVaultPilot stores credentials for the active workspace, encrypted at rest under `~/.vaultpilot/`.\n\n[Set Up New Vault](command:vaultpilot.setUpVault)\n[Restore](command:vaultpilot.restore)",
         "when": "!vaultpilot.vaultExists"
       },
       {
@@ -183,6 +187,16 @@
         "category": "VaultPilot"
       },
       {
+        "command": "vaultpilot.restore",
+        "title": "VaultPilot: Restore…",
+        "category": "VaultPilot"
+      },
+      {
+        "command": "vaultpilot.restoreFromLocal",
+        "title": "VaultPilot: Restore from Local",
+        "category": "VaultPilot"
+      },
+      {
         "command": "vaultpilot.restoreFromDrive",
         "title": "VaultPilot: Restore from Drive",
         "category": "VaultPilot"
@@ -256,6 +270,11 @@
           "type": "string",
           "default": "",
           "description": "Google OAuth 2.0 client secret for the Drive integration. Google's token endpoint requires this for 'Desktop app' clients even when PKCE is used. Despite the name, this is NOT actually secret for desktop clients (anyone with the client ID can read it in the Cloud Console). Copy it from the same page as the client ID."
+        },
+        "vaultpilot.localBackupFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Optional override for the parent folder where local backups are written. Empty string (default) uses the extension's globalStorage path, which lets 'Restore from Local' find the backup automatically. Set this if you want backups in a user-visible folder like ~/Documents/VaultPilot."
         },
         "vaultpilot.verboseLogging": {
           "type": "boolean",

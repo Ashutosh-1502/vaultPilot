@@ -2,11 +2,12 @@ import * as vscode from 'vscode';
 
 import {
   backupToLocal,
-  BACKUP_FOLDER_NAME,
   type BackupBundle,
 } from '../../backup/local-backup';
 import { errorToUserMessage } from '../error-to-message';
 import { GLOBAL_STATE } from '../../settings/state-keys';
+import { readSettings } from '../../settings/settings';
+import { defaultHost } from '../../vscode-host';
 import { promptPassphrase } from '../passphrase-prompt';
 import { zeroBuffer } from '../../vault/memory-zero';
 import { decrypt } from '../../vault/crypto';
@@ -35,7 +36,9 @@ export interface LocalBackupInfo {
  * WinZip using the backup passphrase set at backup time.
  *
  * Flow:
- *   1. Pick destination folder
+ *   1. Resolve destination: `vaultpilot.localBackupFolder` setting if set,
+ *      otherwise the extension's globalStorage path. No file dialog — the
+ *      location is fixed so Restore from Local can find it automatically.
  *   2. Prompt for backup passphrase (separate from per-vault passphrases —
  *      protects the ZIPs, not the local vault)
  *   3. For each project: try to get its credentials in cleartext using
@@ -48,28 +51,13 @@ export interface LocalBackupInfo {
 export async function localBackupCommand(
   session: VaultSession,
   globalState: vscode.Memento,
+  globalStoragePath: string,
 ): Promise<void> {
-  const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
-  const previous = globalState.get<LocalBackupInfo | null>(
-    GLOBAL_STATE.LOCAL_LAST_BACKUP,
-    null,
-  );
-  const defaultUri =
-    previous !== null
-      ? vscode.Uri.file(previous.folder.replace(`/${BACKUP_FOLDER_NAME}`, ''))
-      : workspaceUri;
-
-  const picked = await vscode.window.showOpenDialog({
-    canSelectFiles: false,
-    canSelectFolders: true,
-    canSelectMany: false,
-    openLabel: 'Choose Backup Location',
-    title: `Choose a folder — VaultPilot will create '${BACKUP_FOLDER_NAME}' inside it`,
-    ...(defaultUri !== undefined ? { defaultUri } : {}),
-  });
-  if (picked === undefined || picked.length === 0) return;
-  const targetParent = picked[0];
-  if (targetParent === undefined) return;
+  const settings = readSettings(defaultHost);
+  const targetParentDir =
+    settings.localBackupFolder.length > 0
+      ? settings.localBackupFolder
+      : globalStoragePath;
 
   const backupPassphrase = await promptPassphrase(
     'Choose a passphrase for the backup ZIPs. You will need this when opening the .env.zip files in Keka / 7-Zip / WinZip.',
@@ -86,7 +74,7 @@ export async function localBackupCommand(
         title: 'VaultPilot: Backing up to local folder',
         cancellable: false,
       },
-      async () => backupToLocal(targetParent.fsPath, bundles, passphraseString),
+      async () => backupToLocal(targetParentDir, bundles, passphraseString),
     );
 
     if (!result.ok) {

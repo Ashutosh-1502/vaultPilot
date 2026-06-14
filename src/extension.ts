@@ -32,6 +32,8 @@ import { removeDriveBackupCommand } from './ui/commands/remove-drive-backup';
 import { localBackupCommand } from './ui/commands/local-backup';
 import { backupToDriveCommand } from './ui/commands/backup-to-drive';
 import { restoreFromDriveCommand } from './ui/commands/restore-from-drive';
+import { restoreFromLocalCommand } from './ui/commands/restore-from-local';
+import { restoreCommand } from './ui/commands/restore';
 import { importFromEnvCommand, isEnvFileName } from './ui/commands/import-from-env';
 import { parseEnvFile } from './credentials/env-parser';
 import { openAddMultipleWebview } from './ui/webviews/add-multi-webview';
@@ -143,6 +145,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         onChange,
       }).catch((err: unknown) => logger?.error(`setUpVault: ${String(err)}`)),
     ),
+    vscode.commands.registerCommand('vaultpilot.restore', async () => {
+      await restoreCommand();
+    }),
+    vscode.commands.registerCommand('vaultpilot.restoreFromLocal', async () => {
+      await restoreFromLocalCommand(context.globalStorageUri.fsPath);
+    }),
     vscode.commands.registerCommand('vaultpilot.restoreFromDrive', async () => {
       await restoreFromDriveCommand(secretStorage, onChange);
     }),
@@ -241,7 +249,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       notifyDashboardChanged();
     }),
     vscode.commands.registerCommand('vaultpilot.localBackup', async () => {
-      await localBackupCommand(session, context.globalState);
+      await localBackupCommand(session, context.globalState, context.globalStorageUri.fsPath);
       notifyDashboardChanged();
     }),
   );
