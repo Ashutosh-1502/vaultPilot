@@ -4,7 +4,7 @@ import { CryptoError, VaultFormatError } from '../result/errors';
 import { decrypt, deriveKey, init as cryptoInit } from '../vault/crypto';
 import { parseEnvelope, peekVersion } from '../vault/envelope';
 import { checkSupported } from '../vault/format-version';
-import { ARCHIVE_DIR, readVaultEntry } from '../vault/io';
+import { ARCHIVE_DIR, PROJECTS_DIR, readVaultEntry } from '../vault/io';
 import { isCredential, type Credential } from '../credentials/credential';
 import type { VaultSession } from '../vault/vault-session';
 
@@ -55,8 +55,32 @@ export async function deriveAndCacheArchivedKey(
   fingerprint: string,
   passphrase: Buffer,
 ): Promise<Result<ArchivedEntryView, VaultError>> {
+  return deriveAndCacheKey(session, ARCHIVE_DIR, fingerprint, passphrase);
+}
+
+/**
+ * Same derive/decrypt/cache pattern as `deriveAndCacheArchivedKey`, but reads
+ * from PROJECTS_DIR. Used to unlock an active vault that is NOT the current
+ * workspace's vault (dashboard "Click to unlock" on another active project).
+ * The key lands in the same per-fingerprint cache `borrowArchivedKey` reads,
+ * so `loadProjectCredentials` will find it on the next call.
+ */
+export async function deriveAndCacheActiveKey(
+  session: VaultSession,
+  fingerprint: string,
+  passphrase: Buffer,
+): Promise<Result<ArchivedEntryView, VaultError>> {
+  return deriveAndCacheKey(session, PROJECTS_DIR, fingerprint, passphrase);
+}
+
+async function deriveAndCacheKey(
+  session: VaultSession,
+  baseDir: string,
+  fingerprint: string,
+  passphrase: Buffer,
+): Promise<Result<ArchivedEntryView, VaultError>> {
   await cryptoInit();
-  const entryResult = await readVaultEntry(ARCHIVE_DIR, fingerprint);
+  const entryResult = await readVaultEntry(baseDir, fingerprint);
   if (!entryResult.ok) return entryResult;
   if (entryResult.value === null || entryResult.value.keys === null) {
     return Result.err(VaultFormatError.corrupted());

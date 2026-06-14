@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { randomUUID } from 'node:crypto';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -19,8 +20,9 @@ import {
 import { resolveFingerprint } from '../fingerprint/re-link';
 import { errorToUserMessage } from './error-to-message';
 import { promptPassphraseConfirm } from './passphrase-prompt';
-import { importFromEnvCommand, isEnvFileName } from './commands/import-from-env';
-import { parseEnvFile } from '../credentials/env-parser';
+import { isEnvFileName } from './commands/import-from-env';
+import { parseEnvFile, type EnvEntry } from '../credentials/env-parser';
+import type { Credential } from '../credentials/credential';
 import type { SecretStorageWrapper } from '../keychain/secret-storage';
 import type { VaultSession, ProjectMetadata } from '../vault/vault-session';
 import { CONTEXT_KEYS, GLOBAL_STATE } from '../settings/state-keys';
@@ -49,6 +51,30 @@ export async function setUpNewVault(deps: FirstRunDeps): Promise<void> {
     );
     return;
   }
+  void deps.extensionUri;
+
+  // Detect importable .env entries BEFORE asking for a passphrase. Per the
+  // dogfood feedback (2026-06-14), a vault must be backed by something to
+  // store — empty or missing .env files no longer silently create an empty
+  // vault that the user can't get back into.
+  const plan = await scanWorkspaceForImport(ws.uri.fsPath);
+  if (plan === 'cancelled') return;
+  if (plan.entries.length === 0) {
+    await vscode.window.showInformationMessage(
+      plan.filesScanned === 0
+        ? 'No .env files found in this workspace. Create a .env file with at least one KEY=value entry, then run Set Up Vault again.'
+        : `Found ${String(plan.filesScanned)} .env file${plan.filesScanned === 1 ? '' : 's'} but no KEY=value entries to import. Add some, then run Set Up Vault again.`,
+    );
+    return;
+  }
+
+  const CONFIRM = 'Import & Create Vault';
+  const confirm = await vscode.window.showInformationMessage(
+    `Import ${String(plan.entries.length)} variable${plan.entries.length === 1 ? '' : 's'} from ${plan.fileName} into a new VaultPilot vault?`,
+    { modal: true },
+    CONFIRM,
+  );
+  if (confirm !== CONFIRM) return;
 
   // Webview confirm-mode prompt: shows BOTH inputs in one panel and validates
   // match client-side before submitting. Returns the agreed-upon passphrase
@@ -76,13 +102,22 @@ export async function setUpNewVault(deps: FirstRunDeps): Promise<void> {
   };
 
   const created = new Date().toISOString();
+  const credentials: Credential[] = plan.entries.map((e) => ({
+    id: randomUUID(),
+    name: e.key,
+    type: 'env-var-name',
+    value: e.value,
+    created,
+    updated: created,
+  }));
+
   const innerPayload = Buffer.from(
     JSON.stringify({
       version: CURRENT_VAULT_VERSION,
       created,
       updated: created,
       project: projectMeta,
-      credentials: [],
+      credentials,
     }),
     'utf8',
   );
@@ -146,95 +181,85 @@ export async function setUpNewVault(deps: FirstRunDeps): Promise<void> {
     salt,
     created,
     projectMeta,
-    credentials: [],
+    credentials,
   });
 
   await vscode.commands.executeCommand('setContext', CONTEXT_KEYS.VAULT_EXISTS, true);
   deps.onChange();
 
-  await offerEnvImport(deps, ws.uri.fsPath);
+  void vscode.window.showInformationMessage(
+    `Vault created. Imported ${String(credentials.length)} credential${credentials.length === 1 ? '' : 's'} from ${plan.fileName}.`,
+  );
+
   await offerDriveOptIn(deps.globalState);
 }
 
+interface ImportPlan {
+  readonly fileName: string;
+  readonly entries: readonly EnvEntry[];
+  /** Number of .env* files seen in the workspace root, regardless of content. */
+  readonly filesScanned: number;
+}
+
 /**
- * After first-run, scan the workspace root for .env* files and, if any are
- * found, offer to import them into the freshly-unlocked vault.
+ * Scan the workspace root for `.env*` files and parse each. Returns the plan
+ * the caller should act on:
+ *   - `'cancelled'` if the user dismissed the multi-file picker.
+ *   - Empty `entries` with `filesScanned` so the caller can tell "no files"
+ *     vs "files but empty".
+ *   - Populated `entries` + chosen `fileName` ready to import.
  *
- * Counts and surfaces only env vars whose `KEY` is not already a credential
- * name in the vault — so files whose contents are fully covered show up as
- * "already in vault" and files with nothing new are silently skipped.
  * Workspace root only (not recursive) per MVP scope.
  */
-async function offerEnvImport(deps: FirstRunDeps, workspaceRoot: string): Promise<void> {
-  let entries: string[];
+async function scanWorkspaceForImport(
+  workspaceRoot: string,
+): Promise<ImportPlan | 'cancelled'> {
+  let dirEntries: string[];
   try {
-    entries = await fs.readdir(workspaceRoot);
+    dirEntries = await fs.readdir(workspaceRoot);
   } catch {
-    return;
+    return { fileName: '', entries: [], filesScanned: 0 };
   }
-  const envFiles = entries.filter(isEnvFileName).sort();
-  if (envFiles.length === 0) return;
+  const envFiles = dirEntries.filter(isEnvFileName).sort();
 
-  const existing = deps.session.getCredentials();
-  const existingNames = new Set<string>(
-    existing.ok ? existing.value.map((c) => c.name) : [],
-  );
-
-  const newKeysInFile = async (name: string): Promise<number> => {
+  const parsed: { readonly name: string; readonly entries: readonly EnvEntry[] }[] = [];
+  for (const name of envFiles) {
     try {
       const text = await fs.readFile(path.join(workspaceRoot, name), 'utf8');
-      return parseEnvFile(text).filter((e) => !existingNames.has(e.key)).length;
+      parsed.push({ name, entries: parseEnvFile(text) });
     } catch {
-      return 0;
+      parsed.push({ name, entries: [] });
     }
-  };
+  }
+  const filesScanned = parsed.length;
+  const withContent = parsed.filter((p) => p.entries.length > 0);
+  if (withContent.length === 0) {
+    return { fileName: '', entries: [], filesScanned };
+  }
 
-  // Pre-compute the new-key count per file so we can both filter out fully-
-  // covered files and label the QuickPick rows accurately.
-  const counted = await Promise.all(
-    envFiles.map(async (name) => ({ name, newCount: await newKeysInFile(name) })),
-  );
-  const candidates = counted.filter((c) => c.newCount > 0);
-  if (candidates.length === 0) return;
-
-  let chosen: { name: string; newCount: number } | undefined;
-  if (candidates.length === 1) {
-    chosen = candidates[0];
+  let chosen: { readonly name: string; readonly entries: readonly EnvEntry[] } | undefined;
+  if (withContent.length === 1) {
+    chosen = withContent[0];
   } else {
-    type EnvPick = vscode.QuickPickItem & { readonly file: string; readonly newCount: number };
-    const items: EnvPick[] = candidates.map((c) => ({
-      label: c.name,
-      description: `${String(c.newCount)} new variable${c.newCount === 1 ? '' : 's'}`,
-      file: c.name,
-      newCount: c.newCount,
+    type EnvPick = vscode.QuickPickItem & { readonly file: string };
+    const items: EnvPick[] = withContent.map((p) => ({
+      label: p.name,
+      description: `${String(p.entries.length)} variable${p.entries.length === 1 ? '' : 's'}`,
+      file: p.name,
     }));
     const picked = await vscode.window.showQuickPick(items, {
-      title: 'VaultPilot found .env files in this workspace',
-      placeHolder: 'Pick a file to import (you can import the others later via the command palette)',
+      title: 'VaultPilot found multiple .env files',
+      placeHolder: 'Pick the file to import into your new vault',
       ignoreFocusOut: true,
     });
-    if (picked === undefined) return;
-    chosen = { name: picked.file, newCount: picked.newCount };
+    if (picked === undefined) return 'cancelled';
+    chosen = withContent.find((p) => p.name === picked.file);
   }
-  if (chosen === undefined) return;
+  if (chosen === undefined) {
+    return { fileName: '', entries: [], filesScanned };
+  }
 
-  const IMPORT = 'Import';
-  const SKIP = 'Skip';
-  const choice = await vscode.window.showInformationMessage(
-    `Found ${String(chosen.newCount)} new env var${chosen.newCount === 1 ? '' : 's'} in ${chosen.name}. Import to VaultPilot?`,
-    IMPORT,
-    SKIP,
-  );
-  if (choice !== IMPORT) return;
-
-  await importFromEnvCommand(
-    deps.session,
-    deps.onChange,
-    vscode.Uri.file(path.join(workspaceRoot, chosen.name)),
-    deps.extensionUri,
-    deps.secretStorage,
-    { excludeExistingNames: true },
-  );
+  return { fileName: chosen.name, entries: chosen.entries, filesScanned };
 }
 
 async function offerDriveOptIn(globalState: vscode.Memento): Promise<void> {

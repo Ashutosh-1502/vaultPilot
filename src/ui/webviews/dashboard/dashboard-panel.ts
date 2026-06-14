@@ -29,8 +29,15 @@ import { defaultHost } from '../../../vscode-host';
 import { GLOBAL_STATE } from '../../../settings/state-keys';
 import type { SecretStorageWrapper } from '../../../keychain/secret-storage';
 import type { VaultSession } from '../../../vault/vault-session';
-import { VAULT_ROOT } from '../../../vault/io';
-import { deriveAndCacheArchivedKey } from '../../../archive/archive-decrypt';
+import { ARCHIVE_DIR, PROJECTS_DIR, VAULT_ROOT, pathExists } from '../../../vault/io';
+import {
+  deriveAndCacheActiveKey,
+  deriveAndCacheArchivedKey,
+} from '../../../archive/archive-decrypt';
+import { unlockWithPassphrase } from '../../../vault/unlock';
+import { resolveFingerprint } from '../../../fingerprint/re-link';
+import { VaultFormatError } from '../../../result/errors';
+import { CONTEXT_KEYS } from '../../../settings/state-keys';
 import { promptPassphrase } from '../../passphrase-prompt';
 import { zeroBuffer } from '../../../vault/memory-zero';
 import { errorToUserMessage } from '../../error-to-message';
@@ -183,13 +190,66 @@ async function handleMessage(
         'Enter the passphrase for this project to unlock it.',
       );
       if (passphrase === null) return;
-      const result = await deriveAndCacheArchivedKey(session, msg.fingerprint, passphrase);
-      zeroBuffer(passphrase);
-      if (!result.ok) {
-        void vscode.window.showErrorMessage(errorToUserMessage(result.error));
-        return;
+
+      // Route based on where the vault actually lives on disk. The previous
+      // implementation always read from ARCHIVE_DIR, which surfaced
+      // "vault file is unreadable" whenever the user clicked unlock on an
+      // active project's card.
+      const inArchive = await pathExists(path.join(ARCHIVE_DIR, msg.fingerprint));
+      const inProjects =
+        !inArchive && (await pathExists(path.join(PROJECTS_DIR, msg.fingerprint)));
+
+      try {
+        if (inArchive) {
+          const result = await deriveAndCacheArchivedKey(session, msg.fingerprint, passphrase);
+          if (!result.ok) {
+            void vscode.window.showErrorMessage(errorToUserMessage(result.error));
+            return;
+          }
+        } else if (inProjects) {
+          const ws = vscode.workspace.workspaceFolders?.[0];
+          const workspaceFp =
+            ws !== undefined ? (await resolveFingerprint(ws.uri.fsPath)).fingerprint : null;
+          if (workspaceFp === msg.fingerprint) {
+            // Current workspace — unlock the in-memory session AND cache the
+            // primary derived key in SecretStorage so the next VS Code session
+            // auto-unlocks.
+            const result = await unlockWithPassphrase(session, msg.fingerprint, passphrase);
+            if (!result.ok) {
+              void vscode.window.showErrorMessage(errorToUserMessage(result.error));
+              return;
+            }
+            const cacheResult = await secretStorage.cacheDerivedKey(result.value.derivedKey);
+            if (!cacheResult.ok) {
+              void vscode.window.showWarningMessage(
+                `${errorToUserMessage(cacheResult.error)} You may be re-prompted next session.`,
+              );
+            }
+            await vscode.commands.executeCommand(
+              'setContext',
+              CONTEXT_KEYS.VAULT_EXISTS,
+              true,
+            );
+          } else {
+            // A different active project. Cache the per-fingerprint key so
+            // loadProjectCredentials can decrypt it via the same path it uses
+            // for already-cached projects.
+            const result = await deriveAndCacheActiveKey(session, msg.fingerprint, passphrase);
+            if (!result.ok) {
+              void vscode.window.showErrorMessage(errorToUserMessage(result.error));
+              return;
+            }
+          }
+        } else {
+          void vscode.window.showErrorMessage(
+            errorToUserMessage(VaultFormatError.corrupted()),
+          );
+          return;
+        }
+      } finally {
+        zeroBuffer(passphrase);
       }
-      // Re-load now that the key is cached.
+
       const reload = await loadProjectCredentials(session, msg.fingerprint);
       if (reload.ok) {
         panel.webview.postMessage({
@@ -197,6 +257,7 @@ async function handleMessage(
           credentials: reload.value,
         } satisfies ExtensionResponse);
       }
+      notifyDashboardChanged();
       return;
     }
 
